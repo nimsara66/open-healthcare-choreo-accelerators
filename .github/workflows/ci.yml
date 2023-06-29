@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      JAVA_OPTS: -Xmx4G
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Ballerina Build
+        uses: ballerina-platform/ballerina-action@2201.6.0
+        with:
+          args: pack
+        env:
+          JAVA_HOME: /usr/lib/jvm/default-jvm
+
+  test:
+    runs-on: ubuntu-latest
+    env:
+      JAVA_OPTS: -Xmx4G
+  
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Ballerina Test
+        uses: ballerina-platform/ballerina-action@2201.6.0
+        with:
+          args: test --code-coverage
+        env:
+          JAVA_HOME: /usr/lib/jvm/default-jvm
+
+      - name: Read Ballerina Test Results
+        id: test_results
+        run: |
+          if [ -f "./${{ matrix.path }}/target/report/test_results.json" ]; then
+            content=`cat ./${{ matrix.path }}/target/report/test_results.json`                
+            content="${content//'%'/'%25'}"
+            content="${content//$'\n'/'%0A'}"
+            content="${content//$'\r'/'%0D'}"
+
+            echo "Covered Code Lines : $(echo "$content" | jq -r '.coveredLines')"
+            echo "Total Code Lines : $(echo "$content" | jq -r '.missedLines') + $(echo "$content" | jq -r '.coveredLines')"
+            echo "Code Coverage Percentage : $(echo "$content" | jq -r '.coveragePercentage')"
+          else
+            # echo "TEST_RESULTS_JSON=" >> $GITHUB_OUTPUT
+            echo "No test results file found."
+          fi
